@@ -4,6 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"os"
 )
 
@@ -35,4 +36,17 @@ func Get() *Mongo {
 		instance = Initialize(context.Background())
 	}
 	return instance
+}
+
+func (m *Mongo) WithTransaction(tx func(ctx mongo.SessionContext) (interface{}, error)) (interface{}, error) {
+	wc := writeconcern.New(writeconcern.WMajority())
+	txnOptions := options.Transaction().SetWriteConcern(wc)
+
+	session, err := m.client.StartSession()
+	if err != nil {
+		panic(err)
+	}
+	defer session.EndSession(context.Background())
+
+	return session.WithTransaction(context.Background(), tx, txnOptions)
 }
